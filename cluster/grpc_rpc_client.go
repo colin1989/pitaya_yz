@@ -220,6 +220,14 @@ func (gs *GRPCClient) SendPush(userID string, frontendSv *Server, push *protos.P
 	if c, ok := gs.clientMap.Load(svID); ok {
 		ctxT, done := context.WithTimeout(context.Background(), gs.reqTimeout)
 		defer done()
+
+		if gs.metricsReporters != nil {
+			startTime := time.Now()
+			ctxT = pcontext.AddToPropagateCtx(ctxT, constants.StartTimeKey, startTime.UnixNano())
+			ctxT = pcontext.AddToPropagateCtx(ctxT, constants.RouteKey, push.Route)
+			defer metrics.ReportTimingFromCtx(ctxT, gs.metricsReporters, "rpc", err)
+		}
+
 		err := c.(*grpcClient).pushToUser(ctxT, push)
 		return err
 	}

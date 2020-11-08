@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 
 	"github.com/golang/protobuf/proto"
 
@@ -125,6 +126,13 @@ func (r *RemoteService) AddRemoteBindingListener(bindingListener cluster.RemoteB
 
 // Call processes a remote call
 func (r *RemoteService) Call(ctx context.Context, req *protos.Request) (*protos.Response, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Call", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	c, err := util.GetContextFromRequest(req, r.server.ID)
 	c = util.StartSpanFromRequest(c, r.server.ID, req.GetMsg().GetRoute())
 	var res *protos.Response
@@ -149,6 +157,13 @@ func (r *RemoteService) Call(ctx context.Context, req *protos.Request) (*protos.
 
 // SessionBindRemote is called when a remote server binds a user session and want us to acknowledge it
 func (r *RemoteService) SessionBindRemote(ctx context.Context, msg *protos.BindMsg) (*protos.Response, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "SessionBindRemote", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	for _, r := range r.remoteBindingListeners {
 		r.OnUserBind(msg.Uid, msg.Fid)
 	}
@@ -159,6 +174,13 @@ func (r *RemoteService) SessionBindRemote(ctx context.Context, msg *protos.BindM
 
 // PushToUser sends a push to user
 func (r *RemoteService) PushToUser(ctx context.Context, push *protos.Push) (*protos.Response, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "PushToUser", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	logger.Log.Debugf("sending push to user %s: %v", push.GetUid(), string(push.Data))
 	s := session.GetSessionByUID(push.GetUid())
 	if s != nil {
@@ -175,6 +197,13 @@ func (r *RemoteService) PushToUser(ctx context.Context, push *protos.Push) (*pro
 
 // KickUser sends a kick to user
 func (r *RemoteService) KickUser(ctx context.Context, kick *protos.KickMsg) (*protos.KickAnswer, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "KickUser", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	logger.Log.Debugf("sending kick to user %s", kick.GetUserId())
 	s := session.GetSessionByUID(kick.GetUserId())
 	if s != nil {
@@ -207,6 +236,13 @@ func (r *RemoteService) DoRPC(ctx context.Context, serverID string, route *route
 
 // RPC makes rpcs
 func (r *RemoteService) RPC(ctx context.Context, serverID string, route *route.Route, reply proto.Message, arg proto.Message) error {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "RemoteService RPC", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	var data []byte
 	var err error
 	if arg != nil {

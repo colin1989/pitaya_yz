@@ -26,6 +26,7 @@ import (
 	e "errors"
 	"fmt"
 	"net"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -215,10 +216,10 @@ func (a *Agent) Push(route string, v interface{}) error {
 
 	switch d := v.(type) {
 	case []byte:
-		logger.Log.Debugf("Type=Push, ID=%d, UID=%s, Route=%s, Data=%dbytes",
+		logger.Log.Debugf("Type=Push, ID=%d, UID=%v, Route=%s, Data=%dbytes",
 			a.Session.ID(), a.Session.UID(), route, len(d))
 	default:
-		logger.Log.Debugf("Type=Push, ID=%d, UID=%s, Route=%s, Data=%+v",
+		logger.Log.Debugf("Type=Push, ID=%d, UID=%v, Route=%s, Data=%+v",
 			a.Session.ID(), a.Session.UID(), route, v)
 	}
 	return a.send(pendingMessage{typ: message.Push, route: route, payload: v})
@@ -241,10 +242,10 @@ func (a *Agent) ResponseMID(ctx context.Context, mid uint, v interface{}, isErro
 
 	switch d := v.(type) {
 	case []byte:
-		logger.Log.Debugf("Type=Response, ID=%d, UID=%s, MID=%d, Data=%dbytes",
+		logger.Log.Debugf("Type=Response, ID=%d, UID=%v, MID=%d, Data=%dbytes",
 			a.Session.ID(), a.Session.UID(), mid, len(d))
 	default:
-		logger.Log.Infof("Type=Response, ID=%d, UID=%s, MID=%d, Data=%+v",
+		logger.Log.Infof("Type=Response, ID=%d, UID=%v, MID=%d, Data=%+v",
 			a.Session.ID(), a.Session.UID(), mid, v)
 	}
 
@@ -298,6 +299,12 @@ func (a *Agent) GetStatus() int32 {
 
 // Kick sends a kick packet to a client
 func (a *Agent) Kick(ctx context.Context) error {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Agent Kick", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
 	// packet encode
 	p, err := a.encoder.Encode(packet.Kick, nil)
 	if err != nil {
@@ -321,7 +328,7 @@ func (a *Agent) SetStatus(state int32) {
 func (a *Agent) Handle() {
 	defer func() {
 		a.Close()
-		logger.Log.Debugf("Session handle goroutine exit, SessionID=%d, UID=%s", a.Session.ID(), a.Session.UID())
+		logger.Log.Debugf("Session handle goroutine exit, SessionID=%d, UID=%v", a.Session.ID(), a.Session.UID())
 	}()
 
 	go a.write()
@@ -353,6 +360,10 @@ func (a *Agent) heartbeat() {
 	ticker := time.NewTicker(a.heartbeatTimeout)
 
 	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Agent heartbeat", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
 		ticker.Stop()
 		a.Close()
 	}()
@@ -365,7 +376,9 @@ func (a *Agent) heartbeat() {
 				logger.Log.Debugf("Session heartbeat timeout, LastTime=%d, Deadline=%d", atomic.LoadInt64(&a.lastAt), deadline)
 				return
 			}
-			a.chSend <- pendingWrite{data: hbd}
+			if a.GetStatus() != constants.StatusClosed {
+				a.chSend <- pendingWrite{data: hbd}
+			}
 		case <-a.chDie:
 			return
 		case <-a.chStopHeartbeat:
@@ -392,6 +405,12 @@ func onSessionClosed(s *session.Session) {
 
 // SendHandshakeResponse sends a handshake response
 func (a *Agent) SendHandshakeResponse() error {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Agent SendHandshakeResponse", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
 	_, err := a.conn.Write(hrd)
 	return err
 }
@@ -399,6 +418,10 @@ func (a *Agent) SendHandshakeResponse() error {
 func (a *Agent) write() {
 	// clean func
 	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Agent write", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
 		close(a.chSend)
 		a.Close()
 	}()

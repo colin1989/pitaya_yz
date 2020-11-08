@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -117,6 +118,13 @@ func NewHandlerService(
 
 // Dispatch message to corresponding logic handler
 func (h *HandlerService) Dispatch(thread int) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "Dispatch", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	// TODO: This timer is being stopped multiple times, it probably doesn't need to be stopped here
 	defer timer.GlobalTicker.Stop()
 
@@ -165,6 +173,13 @@ func (h *HandlerService) Register(comp component.Component, opts []component.Opt
 
 // Handle handles messages from a conn
 func (h *HandlerService) Handle(conn acceptor.PlayerConn) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Log.Errorf("crash at goroutine NameTag = %s ;err = %s", "HandlerService Handle", err)
+			logger.Log.Errorf("%s", debug.Stack())
+		}
+	}()
+
 	// create a client agent and startup write goroutine
 	a := agent.NewAgent(conn, h.decoder, h.encoder, h.serializer, h.heartbeatTimeout, h.messagesBufferSize, h.appDieChan, h.messageEncoder, h.metricsReporters)
 
@@ -176,10 +191,15 @@ func (h *HandlerService) Handle(conn acceptor.PlayerConn) {
 	// guarantee agent related resource is destroyed
 	defer func() {
 		a.Session.Close()
-		logger.Log.Debugf("Session read goroutine exit, SessionID=%d, UID=%s", a.Session.ID(), a.Session.UID())
+		logger.Log.Debugf("Session read goroutine exit, SessionID=%d, UID=%v", a.Session.ID(), a.Session.UID())
 	}()
 
 	for {
+		if a.GetStatus() == constants.StatusClosed {
+			logger.Log.Debugf("Agent Close!!!!")
+			return
+		}
+
 		msg, err := conn.GetNextMessage()
 
 		if err != nil {

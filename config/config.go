@@ -69,6 +69,8 @@ func (c *Config) fillDefaultValues() {
 		"pitaya.cluster.rpc.server.nats.connect":                "nats://localhost:4222",
 		"pitaya.cluster.rpc.server.nats.connectiontimeout":      "2s",
 		"pitaya.cluster.rpc.server.nats.maxreconnectionretries": 15,
+		"pitaya.cluster.rpc.server.grpc.maxrecvsize":            4 * 1024 * 1024,
+		"pitaya.cluster.rpc.server.grpc.maxsendsize":            4 * 1024 * 1024,
 		"pitaya.cluster.sd.etcd.dialtimeout":                    "5s",
 		"pitaya.cluster.sd.etcd.endpoints":                      "localhost:2379",
 		"pitaya.cluster.sd.etcd.grantlease.maxretries":          15,

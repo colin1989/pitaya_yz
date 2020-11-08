@@ -178,7 +178,7 @@ func processHandlerMessage(
 		return nil, err
 	}
 
-	logger.Debugf("SID=%d, Data=%s", session.ID(), data)
+	//logger.Debugf("SID=%d, Data=%s", session.ID(), data)
 	args := []reflect.Value{h.Receiver, reflect.ValueOf(ctx)}
 	if arg != nil {
 		args = append(args, reflect.ValueOf(arg))

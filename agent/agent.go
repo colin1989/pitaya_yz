@@ -310,8 +310,10 @@ func (a *Agent) Kick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.conn.Write(p)
-	return err
+	if _, err := a.conn.Write(p); err != nil {
+		logger.Log.Errorf("Kick Write error: %v", err)
+	}
+	return nil
 }
 
 // SetLastAt sets the last at to now

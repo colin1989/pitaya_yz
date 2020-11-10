@@ -3,28 +3,57 @@ package compression
 import (
 	"bytes"
 	"compress/zlib"
+	"io"
 	"io/ioutil"
+	"sync"
+)
+
+var (
+	zlibWriterPool sync.Pool
+	zlibReaderPool sync.Pool
 )
 
 func DeflateData(data []byte) ([]byte, error) {
-	var bb bytes.Buffer
-	z := zlib.NewWriter(&bb)
-	_, err := z.Write(data)
+	var (
+		err error
+		bb  bytes.Buffer
+		w   *zlib.Writer
+	)
+	zw := zlibWriterPool.Get()
+	if zw == nil {
+		zw = zlib.NewWriter(&bb)
+		w = zw.(*zlib.Writer)
+	} else {
+		w = zw.(*zlib.Writer)
+		w.Reset(&bb)
+	}
+	defer zlibWriterPool.Put(zw)
+	_, err = w.Write(data)
 	if err != nil {
 		return nil, err
 	}
-	z.Close()
+	w.Close()
 	return bb.Bytes(), nil
 }
 
 func InflateData(data []byte) ([]byte, error) {
-	zr, err := zlib.NewReader(bytes.NewBuffer(data))
+	var err error
+	zr := zlibReaderPool.Get()
+	if zr != nil {
+		err = zr.(zlib.Resetter).Reset(bytes.NewBuffer(data), nil)
+	} else {
+		zr, err = zlib.NewReader(bytes.NewBuffer(data))
+	}
+	if zr != nil {
+		defer zlibReaderPool.Put(zr)
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer zr.Close()
+	rc := zr.(io.ReadCloser)
+	defer rc.Close()
 
-	return ioutil.ReadAll(zr)
+	return ioutil.ReadAll(rc)
 }
 
 func IsCompressed(data []byte) bool {

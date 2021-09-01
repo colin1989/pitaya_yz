@@ -84,4 +84,5 @@ var (
 	ErrRateLimitExceeded              = errors.New("rate limit exceeded")
 	ErrReceivedMsgSmallerThanExpected = errors.New("received less data than expected, EOF?")
 	ErrReceivedMsgBiggerThanExpected  = errors.New("received more data than expected")
+	ErrRetryNotFound                  = errors.New("retry not found")
 )

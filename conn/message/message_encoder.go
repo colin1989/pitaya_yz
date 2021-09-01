@@ -141,7 +141,7 @@ func Decode(data []byte) (*Message, error) {
 		return nil, ErrWrongMessageType
 	}
 
-	if m.Type == Request || m.Type == Response {
+	if m.Type == Request || m.Type == Response || m.Type == Retry {
 		id := uint(0)
 		// little end byte order
 		// WARNING: must can be stored in 64 bits integer

@@ -95,6 +95,13 @@ func (r *RemoteService) remoteProcess(
 	route *route.Route,
 	msg *message.Message,
 ) {
+	if message.Retry == msg.Type {
+		if err := retryRespone(ctx, a.Session, msg.ID); err != nil {
+			logger.Log.Errorf("Failed to retry remote: %s", err.Error())
+			a.AnswerWithError(ctx, msg.ID, err)
+		}
+		return
+	}
 	res, err := r.remoteCall(ctx, server, protos.RPCType_Sys, route, a.Session, msg)
 	switch msg.Type {
 	case message.Request:
@@ -107,6 +114,8 @@ func (r *RemoteService) remoteProcess(
 		if err != nil {
 			logger.Log.Errorf("Failed to respond remote: %s", err.Error())
 			a.AnswerWithError(ctx, msg.ID, err)
+		} else {
+			cacheRespone(a.Session.UID(), msg.ID, res.Data)
 		}
 	case message.Notify:
 		defer tracing.FinishSpan(ctx, err)

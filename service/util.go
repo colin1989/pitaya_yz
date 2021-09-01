@@ -25,8 +25,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/patrickmn/go-cache"
 	"github.com/topfreegames/pitaya/component"
 	"github.com/topfreegames/pitaya/conn/message"
 	"github.com/topfreegames/pitaya/constants"
@@ -41,6 +43,7 @@ import (
 )
 
 var errInvalidMsg = errors.New("invalid message type provided")
+var c = cache.New(30*time.Minute, 60*time.Minute)
 
 func getHandler(rt *route.Route) (*component.Handler, error) {
 	handler, ok := handlers[rt.Short()]
@@ -132,6 +135,21 @@ func serializeReturn(ser serialize.Serializer, ret interface{}) ([]byte, error) 
 		}
 	}
 	return res, nil
+}
+
+func retryRespone(ctx context.Context, session *session.Session, mid uint) error {
+	data, ok := c.Get(fmt.Sprintf("%v:%v", session.UID(), mid))
+	if !ok {
+		return constants.ErrRetryNotFound
+	}
+	if err := session.ResponseMID(ctx, mid, data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func cacheRespone(uid string, mid uint, data []byte) {
+	c.Set(fmt.Sprintf("%v:%v", uid, mid), data, cache.DefaultExpiration)
 }
 
 func processHandlerMessage(

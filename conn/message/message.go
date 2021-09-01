@@ -35,6 +35,7 @@ const (
 	Notify   Type = 0x01
 	Response Type = 0x02
 	Push     Type = 0x03
+	Retry    Type = 0x04
 )
 
 const (
@@ -97,11 +98,11 @@ func (m *Message) String() string {
 }
 
 func routable(t Type) bool {
-	return t == Request || t == Notify || t == Push
+	return t == Request || t == Notify || t == Push || t == Retry
 }
 
 func invalidType(t Type) bool {
-	return t < Request || t > Push
+	return t < Request || t > Retry
 
 }
 
